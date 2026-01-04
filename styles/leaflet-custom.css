@@ -1,0 +1,28 @@
+/* Leaflet Map Styles */
+
+/* Fix for Leaflet marker icons in Next.js */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+}
+
+.leaflet-default-icon-path {
+  background-image: url('https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png');
+}
+
+/* Ensure map controls are accessible */
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.leaflet-control-zoom a {
+  border-radius: 4px !important;
+}
+
+/* Improve mobile touch interactions */
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar {
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}

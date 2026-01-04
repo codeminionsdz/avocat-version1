@@ -1,0 +1,68 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "../styles/leaflet-custom.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "Inter", "Geist", "Geist Fallback", sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", monospace;
+
+  /* Base colors - Avoca blue theme */
+  --color-background: oklch(0.985 0.002 250);
+  --color-foreground: oklch(0.145 0.015 250);
+  --color-card: oklch(1 0 0);
+  --color-card-foreground: oklch(0.145 0.015 250);
+  --color-popover: oklch(1 0 0);
+  --color-popover-foreground: oklch(0.145 0.015 250);
+  --color-primary: oklch(0.545 0.22 255);
+  --color-primary-foreground: oklch(1 0 0);
+  --color-secondary: oklch(0.95 0.01 250);
+  --color-secondary-foreground: oklch(0.25 0.02 250);
+  --color-muted: oklch(0.96 0.008 250);
+  --color-muted-foreground: oklch(0.45 0.02 250);
+  --color-accent: oklch(0.92 0.02 250);
+  --color-accent-foreground: oklch(0.25 0.02 250);
+  --color-destructive: oklch(0.577 0.245 27.325);
+  --color-destructive-foreground: oklch(1 0 0);
+  --color-border: oklch(0.9 0.01 250);
+  --color-input: oklch(0.94 0.01 250);
+  --color-ring: oklch(0.545 0.22 255);
+
+  /* Charts */
+  --color-chart-1: oklch(0.646 0.222 41.116);
+  --color-chart-2: oklch(0.6 0.118 184.704);
+  --color-chart-3: oklch(0.398 0.07 227.392);
+  --color-chart-4: oklch(0.828 0.189 84.429);
+  --color-chart-5: oklch(0.769 0.188 70.08);
+
+  /* Sidebar */
+  --color-sidebar: oklch(0.985 0 0);
+  --color-sidebar-foreground: oklch(0.145 0 0);
+  --color-sidebar-primary: oklch(0.205 0 0);
+  --color-sidebar-primary-foreground: oklch(0.985 0 0);
+  --color-sidebar-accent: oklch(0.97 0 0);
+  --color-sidebar-accent-foreground: oklch(0.205 0 0);
+  --color-sidebar-border: oklch(0.922 0 0);
+  --color-sidebar-ring: oklch(0.708 0 0);
+
+  /* Radius */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Mobile app container */
+.mobile-container {
+  @apply max-w-md mx-auto min-h-screen relative;
+}
