@@ -7,17 +7,17 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
 import { ChevronRight, User, CreditCard, MapPin, Calendar, LogOut, CheckCircle, Loader2 } from "lucide-react"
 import { categoryLabels } from "@/lib/mock-data"
 import { createClient } from "@/lib/supabase/client"
+import { getWilayaName } from "@/lib/algeria-wilayas"
 import type { LawyerProfile, Profile } from "@/lib/database.types"
 import type { LegalCategory } from "@/lib/types"
 
 const menuItems = [
   { icon: User, label: "Edit Profile", href: "/lawyer/profile/edit" },
   { icon: CreditCard, label: "Subscription", href: "/lawyer/subscription" },
-  { icon: Calendar, label: "Availability Schedule", href: "/lawyer/profile/availability" },
+  { icon: Calendar, label: "Availability Schedule", href: "/lawyer/profile/availability", comingSoon: true },
 ]
 
 export default function LawyerProfilePage() {
@@ -68,18 +68,6 @@ export default function LawyerProfilePage() {
     loadProfile()
   }, [router])
 
-  const handleAvailabilityChange = async (checked: boolean) => {
-    setIsAvailable(checked)
-    const supabase = createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) return
-
-    await supabase.from("lawyer_profiles").update({ is_available: checked }).eq("id", user.id)
-  }
-
   const handleLogout = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
@@ -103,7 +91,7 @@ export default function LawyerProfilePage() {
     )
   }
 
-  const displayName = profile.full_name || email?.split("@")[0] || "Lawyer"
+  const displayName = profile?.full_name || email?.split("@")[0] || "Lawyer"
   const initials = displayName
     .split(" ")
     .map((n) => n[0])
@@ -111,15 +99,15 @@ export default function LawyerProfilePage() {
     .toUpperCase()
     .slice(0, 2)
 
-  const specialties = (lawyerProfile.specialties as LegalCategory[]) || []
+  const specialties = (lawyerProfile?.specialties as LegalCategory[]) || []
 
   const isProfileComplete = Boolean(
-    profile.full_name &&
-      profile.city &&
-      lawyerProfile.bar_number &&
-      lawyerProfile.specialties?.length > 0 &&
-      lawyerProfile.bio &&
-      lawyerProfile.years_of_experience,
+    profile?.full_name &&
+      profile?.city &&
+      lawyerProfile?.bar_number &&
+      lawyerProfile?.specialties?.length > 0 &&
+      lawyerProfile?.bio &&
+      lawyerProfile?.years_of_experience,
   )
 
   return (
@@ -151,13 +139,13 @@ export default function LawyerProfilePage() {
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-semibold text-foreground">{displayName}</h2>
-                  {lawyerProfile.status === "active" && <CheckCircle className="h-4 w-4 text-primary" />}
+                  {lawyerProfile?.status === "active" && <CheckCircle className="h-4 w-4 text-primary" />}
                 </div>
                 <p className="text-sm text-muted-foreground">{email}</p>
-                {profile.city && (
+                {profile?.city && (
                   <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
                     <MapPin className="h-3 w-3" />
-                    {profile.city}
+                    {getWilayaName(profile.city)}
                   </div>
                 )}
               </div>
@@ -176,7 +164,7 @@ export default function LawyerProfilePage() {
           </CardContent>
         </Card>
 
-        {/* Availability Toggle */}
+        {/* Availability Status */}
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -186,13 +174,15 @@ export default function LawyerProfilePage() {
                   {isAvailable ? "Accepting new consultations" : "Not accepting new consultations"}
                 </p>
               </div>
-              <Switch checked={isAvailable} onCheckedChange={handleAvailabilityChange} />
+              <Badge variant={isAvailable ? "default" : "secondary"} className="shrink-0">
+                {isAvailable ? "Available" : "Unavailable"}
+              </Badge>
             </div>
           </CardContent>
         </Card>
 
         {/* Stats - Show only if available */}
-        {lawyerProfile.years_of_experience && (
+        {lawyerProfile?.years_of_experience && (
           <Card>
             <CardContent className="p-4">
               <div className="grid grid-cols-1 gap-4 text-center">
@@ -217,6 +207,9 @@ export default function LawyerProfilePage() {
                 <div className="flex items-center gap-3">
                   <item.icon className="h-5 w-5 text-muted-foreground" />
                   <span className="font-medium text-foreground">{item.label}</span>
+                  {item.comingSoon && (
+                    <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
+                  )}
                 </div>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </CardContent>

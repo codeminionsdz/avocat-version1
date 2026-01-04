@@ -55,8 +55,8 @@ export interface Subscription {
   id: string
   lawyerId: string
   status: SubscriptionStatus
-  plan: "monthly" | "yearly"
-  amount: number // in DZD
+  plan: "annual"
+  amount: number // in DZD (must be 15000)
   startDate?: Date
   endDate?: Date
   createdAt: Date

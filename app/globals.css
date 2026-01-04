@@ -62,6 +62,13 @@
   }
 }
 
+/* Arabic font styling */
+.font-arabic {
+  font-family: 'Traditional Arabic', 'Arial', sans-serif;
+  font-weight: 500;
+  direction: rtl;
+}
+
 /* Mobile app container */
 .mobile-container {
   @apply max-w-md mx-auto min-h-screen relative;

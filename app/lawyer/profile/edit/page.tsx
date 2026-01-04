@@ -16,20 +16,10 @@ import { Badge } from "@/components/ui/badge"
 import { Loader2, Building2, Info, MapPin, QrCode } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { LawyerQRCode } from "@/components/lawyer/lawyer-qr-code"
+import { ALGERIA_WILAYAS, getWilayaName, mapLegacyCityToWilaya } from "@/lib/algeria-wilayas"
+import { getLawyerProfileUrl } from "@/lib/config"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { LegalCategory, Profile, LawyerProfile, CourtLevel } from "@/lib/database.types"
-
-const cities = [
-  "Algiers",
-  "Oran",
-  "Constantine",
-  "Annaba",
-  "Blida",
-  "Batna",
-  "Djelfa",
-  "Sétif",
-  "Sidi Bel Abbès",
-  "Biskra",
-]
 
 const categoryLabels: Record<LegalCategory, string> = {
   criminal: "Criminal Law",
@@ -132,7 +122,7 @@ export default function EditProfilePage() {
         if (profileRes.data) {
           const p = profileRes.data as Profile
           setFullName(p.full_name || "")
-          setCity(p.city || "")
+          setCity(mapLegacyCityToWilaya(p.city) || p.city || "")
           setPhone(p.phone || "")
         }
 
@@ -292,21 +282,19 @@ export default function EditProfilePage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="city">City</Label>
-                <select
-                  id="city"
-                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
-                  required
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                >
-                  <option value="">Select your city</option>
-                  {cities.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
+                <Label htmlFor="city">Wilaya (الولاية)</Label>
+                <Select value={city} onValueChange={setCity}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select your wilaya" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ALGERIA_WILAYAS.map((wilaya) => (
+                      <SelectItem key={wilaya.code} value={wilaya.slug}>
+                        {wilaya.code} - {wilaya.name_en} / {wilaya.name_ar}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -625,7 +613,7 @@ export default function EditProfilePage() {
             {showQR && userId && (
               <div className="pt-2">
                 <LawyerQRCode
-                  url={`${typeof window !== 'undefined' ? window.location.origin : ''}/lawyer/${userId}`}
+                  url={getLawyerProfileUrl(userId)}
                   lawyerName={fullName || "Your Profile"}
                 />
               </div>

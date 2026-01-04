@@ -14,7 +14,7 @@ export type UserRole = "client" | "lawyer"
 
 export type LawyerStatus = "pending" | "active" | "inactive"
 
-export type SubscriptionPlan = "monthly" | "quarterly" | "annual"
+export type SubscriptionPlan = "annual"
 
 export type SubscriptionStatus = "pending" | "active" | "expired" | "cancelled"
 

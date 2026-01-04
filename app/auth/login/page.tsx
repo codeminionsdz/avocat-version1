@@ -15,7 +15,8 @@ import { createClient } from "@/lib/supabase/client"
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const role = searchParams.get("role") || "client"
+  // SECURITY: Don't accept role from URL. Auto-detect from database.
+  const returnUrl = searchParams.get("returnUrl")
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -43,26 +44,17 @@ function LoginForm() {
 
       if (authError) throw authError
 
-      // Check user role and redirect accordingly
+      // Check user role from database (not URL) and redirect accordingly
       const userRole = data.user?.user_metadata?.role
 
-      if (role === "lawyer" && userRole !== "lawyer") {
-        setError("This account is not registered as a lawyer")
-        await supabase.auth.signOut()
-        return
-      }
-
-      if (role === "client" && userRole === "lawyer") {
-        setError("This account is registered as a lawyer. Please use the lawyer login.")
-        await supabase.auth.signOut()
-        return
-      }
-
-      // Redirect based on role
-      if (userRole === "lawyer") {
-        router.push("/lawyer")
+      // Redirect based on returnUrl or ACTUAL role (from database)
+      if (returnUrl) {
+        // Use replace to avoid back button issues
+        router.replace(decodeURIComponent(returnUrl))
+      } else if (userRole === "lawyer") {
+        router.replace("/lawyer")
       } else {
-        router.push("/client/home")
+        router.replace("/client/home")
       }
     } catch (err) {
       console.log("[v0] Login error:", err)
@@ -117,7 +109,10 @@ function LoginForm() {
         <div className="mt-6 text-center">
           <p className="text-sm text-muted-foreground">
             {"Don't have an account? "}
-            <Link href={`/auth/register?role=${role}`} className="text-primary font-medium">
+            <Link 
+              href={`/auth/register${returnUrl ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ''}`} 
+              className="text-primary font-medium"
+            >
               Register
             </Link>
           </p>

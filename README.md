@@ -15,7 +15,7 @@ A professional platform connecting clients with lawyers in Algeria, featuring co
 ### For Lawyers
 - **Professional Profiles**: Showcase expertise, experience, and credentials
 - **Consultation Management**: Accept/decline consultation requests
-- **Subscription System**: Flexible payment plans (monthly/quarterly/annual)
+- **Subscription System**: Annual subscription (15,000 DZD/year)
 - **Court Authorization**: Declare practice levels (first instance, appeal, supreme court, council of state)
 - **Digital Business Cards**: Generate QR codes for easy profile sharing
 - **Office Location Sharing**: Display office on map with navigation support

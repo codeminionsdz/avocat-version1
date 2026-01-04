@@ -68,6 +68,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // SECURITY: Only clients can request consultations
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role === 'lawyer') {
+      return NextResponse.json(
+        { error: 'Lawyers cannot request consultations' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const {
       lawyer_id,

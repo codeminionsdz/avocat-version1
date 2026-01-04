@@ -121,8 +121,8 @@ export default function SubscriptionPage() {
         .from("subscriptions")
         .insert({
           lawyer_id: user.id,
-          plan: "monthly",
-          amount: 5000,
+          plan: "annual",
+          amount: 15000,
           status: "pending",
         })
         .select()
@@ -222,8 +222,8 @@ export default function SubscriptionPage() {
               <Badge>Popular</Badge>
             </div>
             <div className="mb-4">
-              <span className="text-3xl font-bold text-foreground">5,000 DZD</span>
-              <span className="text-muted-foreground">/month</span>
+              <span className="text-3xl font-bold text-foreground">15,000 DZD</span>
+              <span className="text-muted-foreground">/year</span>
             </div>
             <ul className="space-y-3 text-sm">
               <li className="flex items-center gap-2">

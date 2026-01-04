@@ -9,9 +9,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { ThumbsUp, ThumbsDown, MessageSquare, AlertCircle, Search } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, MessageSquare, AlertCircle, Search, Share2 } from 'lucide-react'
 import { LegalInsightWithStats, InsightCategory } from '@/lib/database.types'
 import { toast } from '@/hooks/use-toast'
+import { shareInsight } from '@/lib/share-utils'
+import { getWilayaName } from '@/lib/algeria-wilayas'
 
 const CATEGORIES: { value: InsightCategory | 'all'; label: string }[] = [
   { value: 'all', label: 'All Categories' },
@@ -67,42 +69,41 @@ export default function InsightsPage() {
       })
 
       if (response.ok) {
-        // Update local state
+        const data = await response.json()
+        
+        // Update local state with server counts
         setInsights(insights.map(insight => {
           if (insight.id === insightId) {
-            const oldRating = insight.user_rating
-            const newInsight = { ...insight, user_rating: rating }
-            
-            // Adjust counts
-            if (oldRating === 'helpful') {
-              newInsight.helpful_count--
-            } else if (oldRating === 'not_helpful') {
-              newInsight.not_helpful_count--
+            return {
+              ...insight,
+              user_rating: rating,
+              helpful_count: data.helpfulCount,
+              not_helpful_count: data.notHelpfulCount
             }
-            
-            if (rating === 'helpful') {
-              newInsight.helpful_count++
-            } else {
-              newInsight.not_helpful_count++
-            }
-            
-            return newInsight
           }
           return insight
         }))
         
         toast({
-          title: 'Thank you',
+          title: '✓ Thank you',
           description: 'Your feedback has been recorded'
         })
       } else if (response.status === 401) {
         toast({
-          title: 'Sign in required',
+          title: '🔐 Sign in required',
           description: 'Please sign in to rate insights',
+          variant: 'destructive'
+        })
+      } else {
+        const error = await response.json()
+        toast({
+          title: 'Error',
+          description: error.error || 'Failed to submit rating',
           variant: 'destructive'
         })
       }
     } catch (error) {
+      console.error('Error rating insight:', error)
       toast({
         title: 'Error',
         description: 'Failed to submit rating',
@@ -113,6 +114,23 @@ export default function InsightsPage() {
 
   const handleRequestConsultation = (lawyerId: string) => {
     router.push(`/client/lawyers/${lawyerId}`)
+  }
+
+  const handleShare = async (insight: LegalInsightWithStats) => {
+    const result = await shareInsight({ insight })
+    
+    if (result.success) {
+      toast({
+        title: '✓ ' + (result.method === 'clipboard' ? 'Copied to clipboard' : 'Shared'),
+        description: result.message
+      })
+    } else if (result.method !== 'webshare') { // Don't show error if user cancelled
+      toast({
+        title: 'Error',
+        description: result.message,
+        variant: 'destructive'
+      })
+    }
   }
 
   const filteredInsights = insights.filter(insight =>
@@ -182,34 +200,47 @@ export default function InsightsPage() {
       ) : (
         <div className="space-y-6">
           {filteredInsights.map((insight) => (
-            <Card key={insight.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => router.push(`/insights/${insight.id}`)}>
-              <CardHeader>
-                <div className="flex justify-between items-start mb-2">
-                  <Badge variant="outline">
+            <Card key={insight.id} className="max-w-full overflow-hidden hover:shadow-lg transition-shadow">
+              <CardHeader className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                  <Badge variant="outline" className="w-fit">
                     {CATEGORIES.find(c => c.value === insight.category)?.label}
                   </Badge>
-                  <span className="text-sm text-muted-foreground">
-                    {new Date(insight.created_at).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleShare(insight)
+                      }}
+                      className="h-8 px-2"
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                    <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
+                      {new Date(insight.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </span>
+                  </div>
                 </div>
-                <CardTitle className="text-2xl">{insight.title}</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-xl md:text-2xl font-bold break-words">{insight.title}</CardTitle>
+                <CardDescription className="break-words text-sm">
                   By {insight.lawyer_name}
                   {insight.specialization && ` • ${insight.specialization}`}
-                  {insight.wilaya && ` • ${insight.wilaya}`}
+                  {insight.wilaya && ` • ${getWilayaName(insight.wilaya)}`}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground line-clamp-3">
-                  {insight.content.length > 200 ? `${insight.content.substring(0, 200)}...` : insight.content}
+              <CardContent className="space-y-4">
+                <p className="text-muted-foreground line-clamp-3 break-words text-sm md:text-base">
+                  {insight.content}
                 </p>
                 
                 {insight.ai_tags && insight.ai_tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-4">
+                  <div className="flex flex-wrap gap-2">
                     {insight.ai_tags.slice(0, 3).map((tag, idx) => (
                       <Badge key={idx} variant="secondary">
                         {tag}
@@ -220,12 +251,21 @@ export default function InsightsPage() {
                     )}
                   </div>
                 )}
+
+                <Button
+                  variant="link"
+                  className="h-auto p-0 text-primary"
+                  onClick={() => router.push(`/insights/${insight.id}`)}
+                >
+                  Read full insight →
+                </Button>
               </CardContent>
-              <CardFooter className="flex justify-between items-center">
-                <div className="flex gap-2">
+              <CardFooter className="flex flex-col md:flex-row gap-3 md:justify-between md:items-center border-t pt-4">
+                <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                   <Button
                     variant={insight.user_rating === 'helpful' ? 'default' : 'outline'}
                     size="sm"
+                    className="w-full sm:w-auto"
                     onClick={(e) => {
                       e.stopPropagation()
                       handleRate(insight.id, 'helpful')
@@ -237,6 +277,7 @@ export default function InsightsPage() {
                   <Button
                     variant={insight.user_rating === 'not_helpful' ? 'default' : 'outline'}
                     size="sm"
+                    className="w-full sm:w-auto"
                     onClick={(e) => {
                       e.stopPropagation()
                       handleRate(insight.id, 'not_helpful')
@@ -247,6 +288,7 @@ export default function InsightsPage() {
                   </Button>
                 </div>
                 <Button
+                  className="w-full md:w-auto"
                   onClick={(e) => {
                     e.stopPropagation()
                     handleRequestConsultation(insight.lawyer_id)

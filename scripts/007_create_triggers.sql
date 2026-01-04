@@ -7,37 +7,21 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+  -- SECURITY: Always create as 'client', ignore raw_user_meta_data role
+  -- Lawyer accounts must be created via backend admin API only
   INSERT INTO public.profiles (id, role, full_name, phone, city)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data ->> 'role', 'client'),
+    'client',  -- HARDCODED: Always client on signup
     COALESCE(NEW.raw_user_meta_data ->> 'full_name', ''),
     COALESCE(NEW.raw_user_meta_data ->> 'phone', NULL),
     COALESCE(NEW.raw_user_meta_data ->> 'city', NULL)
   )
   ON CONFLICT (id) DO NOTHING;
 
-  -- If user is a lawyer, create lawyer_profiles entry
-  IF NEW.raw_user_meta_data ->> 'role' = 'lawyer' THEN
-    INSERT INTO public.lawyer_profiles (
-      id,
-      bar_number,
-      specialties,
-      bio,
-      years_of_experience
-    )
-    VALUES (
-      NEW.id,
-      COALESCE(NEW.raw_user_meta_data ->> 'bar_number', ''),
-      COALESCE(
-        ARRAY(SELECT jsonb_array_elements_text((NEW.raw_user_meta_data ->> 'specialties')::jsonb)),
-        '{}'
-      ),
-      COALESCE(NEW.raw_user_meta_data ->> 'bio', ''),
-      COALESCE((NEW.raw_user_meta_data ->> 'years_of_experience')::INTEGER, 0)
-    )
-    ON CONFLICT (id) DO NOTHING;
-  END IF;
+  -- REMOVED: Auto lawyer_profiles creation
+  -- Lawyers must be promoted via backend admin API only
+  -- This prevents privilege escalation via raw_user_meta_data manipulation
 
   RETURN NEW;
 END;

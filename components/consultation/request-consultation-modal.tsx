@@ -69,6 +69,8 @@ export function RequestConsultationModal({
 
     setLoading(true)
     try {
+      console.log('🔵 [CONSULTATION] Starting submission...')
+      
       // Combine date and time if provided
       let requested_time = null
       if (date) {
@@ -77,6 +79,15 @@ export function RequestConsultationModal({
         datetime.setHours(parseInt(hours), parseInt(minutes), 0, 0)
         requested_time = datetime.toISOString()
       }
+
+      console.log('🔵 [CONSULTATION] Request payload:', {
+        lawyer_id: lawyerId,
+        category,
+        consultation_type: consultationType,
+        requested_duration: duration,
+        description_length: description.length,
+        requested_time
+      })
 
       const response = await fetch('/api/consultations', {
         method: 'POST',
@@ -94,14 +105,17 @@ export function RequestConsultationModal({
         })
       })
 
+      console.log('🔵 [CONSULTATION] Response status:', response.status)
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Failed to send request' }))
+        console.error('❌ [CONSULTATION] API error:', errorData)
         throw new Error(errorData.error || `Server error (${response.status})`)
       }
 
       // Success
       const result = await response.json()
-      console.log('✅ Consultation request created:', result)
+      console.log('✅ [CONSULTATION] Request created successfully:', result)
       
       toast({
         title: '✅ Request Sent Successfully',

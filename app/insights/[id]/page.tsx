@@ -8,9 +8,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { ThumbsUp, ThumbsDown, MessageSquare, AlertCircle, User, Briefcase, Loader2 } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, MessageSquare, AlertCircle, User, Briefcase, Loader2, Share2 } from 'lucide-react'
 import { LegalInsightWithStats, InsightCategory } from '@/lib/database.types'
 import { toast } from '@/hooks/use-toast'
+import { shareInsight } from '@/lib/share-utils'
+import { getWilayaName } from '@/lib/algeria-wilayas'
 
 const CATEGORIES: { value: InsightCategory; label: string }[] = [
   { value: 'criminal', label: 'Criminal Law' },
@@ -25,19 +27,23 @@ const CATEGORIES: { value: InsightCategory; label: string }[] = [
   { value: 'other', label: 'Other' }
 ]
 
-export default function InsightDetailPage({ params }: { params: { id: string } }) {
+export default function InsightDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const [insightId, setInsightId] = useState<string>('')
   const [insight, setInsight] = useState<LegalInsightWithStats | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchInsight()
-  }, [params.id])
+    params.then((resolvedParams) => {
+      setInsightId(resolvedParams.id)
+      fetchInsight(resolvedParams.id)
+    })
+  }, [params])
 
-  const fetchInsight = async () => {
+  const fetchInsight = async (id: string) => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/insights/${params.id}`)
+      const response = await fetch(`/api/insights/${id}`)
       if (response.ok) {
         const data = await response.json()
         setInsight(data)
@@ -72,37 +78,36 @@ export default function InsightDetailPage({ params }: { params: { id: string } }
       })
 
       if (response.ok) {
-        // Update local state
-        const oldRating = insight.user_rating
-        const newInsight = { ...insight, user_rating: rating }
+        const data = await response.json()
         
-        // Adjust counts
-        if (oldRating === 'helpful') {
-          newInsight.helpful_count--
-        } else if (oldRating === 'not_helpful') {
-          newInsight.not_helpful_count--
-        }
-        
-        if (rating === 'helpful') {
-          newInsight.helpful_count++
-        } else {
-          newInsight.not_helpful_count++
-        }
-        
-        setInsight(newInsight)
+        // Update local state with server counts
+        setInsight({
+          ...insight,
+          user_rating: rating,
+          helpful_count: data.helpfulCount,
+          not_helpful_count: data.notHelpfulCount
+        })
         
         toast({
-          title: 'Thank you',
+          title: '✓ Thank you',
           description: 'Your feedback has been recorded'
         })
       } else if (response.status === 401) {
         toast({
-          title: 'Sign in required',
+          title: '🔐 Sign in required',
           description: 'Please sign in to rate insights',
+          variant: 'destructive'
+        })
+      } else {
+        const error = await response.json()
+        toast({
+          title: 'Error',
+          description: error.error || 'Failed to submit rating',
           variant: 'destructive'
         })
       }
     } catch (error) {
+      console.error('Error rating insight:', error)
       toast({
         title: 'Error',
         description: 'Failed to submit rating',
@@ -114,6 +119,25 @@ export default function InsightDetailPage({ params }: { params: { id: string } }
   const handleRequestConsultation = () => {
     if (insight) {
       router.push(`/client/lawyers/${insight.lawyer_id}`)
+    }
+  }
+
+  const handleShare = async () => {
+    if (!insight) return
+    
+    const result = await shareInsight({ insight })
+    
+    if (result.success) {
+      toast({
+        title: '✓ ' + (result.method === 'clipboard' ? 'Copied to clipboard' : 'Shared'),
+        description: result.message
+      })
+    } else if (result.method !== 'webshare') { // Don't show error if user cancelled
+      toast({
+        title: 'Error',
+        description: result.message,
+        variant: 'destructive'
+      })
     }
   }
 
@@ -147,25 +171,35 @@ export default function InsightDetailPage({ params }: { params: { id: string } }
           </AlertDescription>
         </Alert>
 
-      <Card className="mb-6">
+      <Card className="mb-6 max-w-full overflow-hidden">
         <CardHeader>
-          <div className="flex justify-between items-start mb-2">
-            <Badge variant="outline" className="text-base px-3 py-1">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
+            <Badge variant="outline" className="text-base px-3 py-1 w-fit">
               {categoryLabel}
             </Badge>
-            <span className="text-sm text-muted-foreground">
-              {new Date(insight.created_at).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })}
-            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleShare}
+                className="h-8 px-2"
+              >
+                <Share2 className="h-4 w-4" />
+              </Button>
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                {new Date(insight.created_at).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </span>
+            </div>
           </div>
-          <CardTitle className="text-3xl mt-4">{insight.title}</CardTitle>
+          <CardTitle className="text-2xl sm:text-3xl mt-4 break-words hyphens-auto">{insight.title}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="prose prose-slate max-w-none">
-            <p className="text-lg leading-relaxed whitespace-pre-wrap">{insight.content}</p>
+            <p className="text-base sm:text-lg leading-relaxed whitespace-pre-wrap break-words">{insight.content}</p>
           </div>
           
           {insight.ai_tags && insight.ai_tags.length > 0 && (
@@ -181,11 +215,12 @@ export default function InsightDetailPage({ params }: { params: { id: string } }
             </div>
           )}
         </CardContent>
-        <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-6 border-t">
-          <div className="flex gap-2">
+        <CardFooter className="flex flex-col gap-4 pt-6 border-t">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <Button
               variant={insight.user_rating === 'helpful' ? 'default' : 'outline'}
               size="lg"
+              className="w-full sm:w-auto"
               onClick={() => handleRate('helpful')}
             >
               <ThumbsUp className="mr-2 h-5 w-5" />
@@ -194,6 +229,7 @@ export default function InsightDetailPage({ params }: { params: { id: string } }
             <Button
               variant={insight.user_rating === 'not_helpful' ? 'default' : 'outline'}
               size="lg"
+              className="w-full sm:w-auto"
               onClick={() => handleRate('not_helpful')}
             >
               <ThumbsDown className="mr-2 h-5 w-5" />
@@ -203,7 +239,7 @@ export default function InsightDetailPage({ params }: { params: { id: string } }
         </CardFooter>
       </Card>
 
-      <Card>
+      <Card className="max-w-full overflow-hidden">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
@@ -212,27 +248,27 @@ export default function InsightDetailPage({ params }: { params: { id: string } }
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <h3 className="font-semibold text-lg">{insight.lawyer_name}</h3>
+            <h3 className="font-semibold text-lg break-words">{insight.lawyer_name}</h3>
             {insight.specialization && (
-              <p className="text-muted-foreground flex items-center gap-2 mt-1">
-                <Briefcase className="h-4 w-4" />
-                {insight.specialization}
+              <p className="text-muted-foreground flex items-center gap-2 mt-1 break-words">
+                <Briefcase className="h-4 w-4 shrink-0" />
+                <span className="break-words">{insight.specialization}</span>
               </p>
             )}
             {insight.wilaya && (
-              <p className="text-sm text-muted-foreground mt-1">
-                📍 {insight.wilaya}
+              <p className="text-sm text-muted-foreground mt-1 break-words">
+                📍 {getWilayaName(insight.wilaya)}
               </p>
             )}
           </div>
           
-          <div className="flex gap-4 pt-2">
-            <Link href={`/lawyer/${insight.lawyer_id}`}>
-              <Button variant="outline">
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <Link href={`/lawyer/${insight.lawyer_id}`} className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full">
                 View Profile
               </Button>
             </Link>
-            <Button onClick={handleRequestConsultation}>
+            <Button onClick={handleRequestConsultation} className="w-full sm:w-auto">
               <MessageSquare className="mr-2 h-4 w-4" />
               Request Consultation
             </Button>

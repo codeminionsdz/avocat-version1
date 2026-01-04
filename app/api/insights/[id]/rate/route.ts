@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 // POST /api/insights/[id]/rate - Rate an insight
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
@@ -14,7 +14,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
     const { rating } = body
 
@@ -37,7 +37,7 @@ export async function POST(
     }
 
     // Upsert rating (insert or update if exists)
-    const { data, error } = await supabase
+    const { error: upsertError } = await supabase
       .from('legal_insight_ratings')
       .upsert({
         insight_id: id,
@@ -46,15 +46,30 @@ export async function POST(
       }, {
         onConflict: 'insight_id,user_id'
       })
-      .select()
-      .single()
 
-    if (error) {
-      console.error('Error rating insight:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (upsertError) {
+      console.error('Error rating insight:', upsertError)
+      return NextResponse.json({ error: upsertError.message }, { status: 500 })
     }
 
-    return NextResponse.json(data)
+    // Fetch updated counts from the view
+    const { data: updatedInsight, error: fetchError } = await supabase
+      .from('legal_insights_with_stats')
+      .select('helpful_count, not_helpful_count')
+      .eq('id', id)
+      .single()
+
+    if (fetchError || !updatedInsight) {
+      console.error('Error fetching updated counts:', fetchError)
+      return NextResponse.json({ error: 'Failed to fetch updated counts' }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      rating,
+      helpfulCount: updatedInsight.helpful_count,
+      notHelpfulCount: updatedInsight.not_helpful_count
+    })
   } catch (error) {
     console.error('Error rating insight:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -64,7 +79,7 @@ export async function POST(
 // DELETE /api/insights/[id]/rate - Remove rating from an insight
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
@@ -74,7 +89,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = params
+    const { id } = await params
 
     const { error } = await supabase
       .from('legal_insight_ratings')

@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { createClient } from "@/lib/supabase/client"
 import type { LegalCategory, CourtLevel } from "@/lib/database.types"
-import { WILAYAS } from "@/lib/wilayas"
+import { ALGERIA_WILAYAS } from "@/lib/algeria-wilayas"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
 import { Building2, Info } from "lucide-react"
@@ -157,12 +157,12 @@ export default function LawyerRegisterPage() {
             <Label htmlFor="city">Wilaya (الولاية)</Label>
             <Select value={city} onValueChange={setCity} required>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="اختر الولاية / Sélectionner wilaya" />
+                <SelectValue placeholder="اختر الولاية / Select wilaya" />
               </SelectTrigger>
               <SelectContent>
-                {WILAYAS.map((wilaya) => (
-                  <SelectItem key={wilaya.code} value={wilaya.nameAr}>
-                    {wilaya.code} - {wilaya.nameAr} / {wilaya.nameFr}
+                {ALGERIA_WILAYAS.map((wilaya) => (
+                  <SelectItem key={wilaya.code} value={wilaya.slug}>
+                    {wilaya.code} - {wilaya.name_ar} / {wilaya.name_en}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Search, Star, MapPin, CheckCircle, Loader2, Building2 } from "lucide-react"
 import { useLawyers } from "@/lib/hooks/use-lawyers"
+import { getWilayaName } from "@/lib/algeria-wilayas"
 import type { LegalCategory, CourtLevel } from "@/lib/database.types"
 
 const categoryLabels: Record<LegalCategory, string> = {
@@ -152,7 +153,7 @@ function LawyersListContent() {
                         </span>
                         <span className="flex items-center gap-1">
                           <MapPin className="h-3.5 w-3.5" />
-                          {lawyer.profile.city || "Algeria"}
+                          {getWilayaName(lawyer.profile.city) || "Algeria"}
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-1.5 mt-2">

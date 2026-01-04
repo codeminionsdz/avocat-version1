@@ -10,10 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Star, MapPin, CheckCircle, Briefcase, Calendar, Phone, Mail, Navigation, Download, Share2, Loader2, ThumbsUp, ThumbsDown, BookOpen } from "lucide-react"
+import { Star, MapPin, CheckCircle, Briefcase, Calendar, Phone, Mail, Navigation, Download, Share2, Loader2, ThumbsUp, ThumbsDown, BookOpen, Scale, Building2, LandmarkIcon, University, LogIn, UserPlus } from "lucide-react"
 import { LawyerQRCode } from "@/components/lawyer/lawyer-qr-code"
 import { LawyerMap } from "@/components/lawyer/lawyer-map"
 import { RequestConsultationModal } from "@/components/consultation/request-consultation-modal"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { getWilayaName } from "@/lib/algeria-wilayas"
+import { getLawyerProfileUrl } from "@/lib/config"
 import type { LawyerWithProfile, LegalCategory, LegalInsightWithStats } from "@/lib/database.types"
 
 const categoryLabels: Record<LegalCategory, string> = {
@@ -39,6 +42,7 @@ export default function PublicLawyerProfile({ params }: PublicLawyerProfileProps
   const [showQR, setShowQR] = useState(false)
   const [insights, setInsights] = useState<LegalInsightWithStats[]>([])
   const [showRequestModal, setShowRequestModal] = useState(false)
+  const [showSignInModal, setShowSignInModal] = useState(false)
 
   useEffect(() => {
     params.then((resolvedParams) => {
@@ -47,6 +51,30 @@ export default function PublicLawyerProfile({ params }: PublicLawyerProfileProps
       fetchLawyerInsights(resolvedParams.id)
     })
   }, [params])
+
+  // Check for returnUrl and auto-open consultation modal after login
+  useEffect(() => {
+    const checkAuthAndOpenModal = async () => {
+      if (typeof window === 'undefined') return
+      
+      const urlParams = new URLSearchParams(window.location.search)
+      const shouldOpenModal = urlParams.get('openConsultation') === 'true'
+      
+      if (shouldOpenModal && lawyerId) {
+        const supabase = createClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (session) {
+          // Remove query param and open modal
+          const newUrl = window.location.pathname
+          window.history.replaceState({}, '', newUrl)
+          setShowRequestModal(true)
+        }
+      }
+    }
+    
+    checkAuthAndOpenModal()
+  }, [lawyerId])
 
   const fetchLawyerProfile = async (id: string) => {
     try {
@@ -81,17 +109,21 @@ export default function PublicLawyerProfile({ params }: PublicLawyerProfileProps
     const { data: { session } } = await supabase.auth.getSession()
     
     if (!session) {
-      toast({
-        title: "🔐 Sign In Required",
-        description: "Please sign in to request a consultation",
-        variant: "destructive"
-      })
-      const currentPath = `/lawyer/${lawyerId}`
-      router.push(`/auth/login?returnUrl=${encodeURIComponent(currentPath)}`)
+      setShowSignInModal(true)
       return
     }
     
     setShowRequestModal(true)
+  }
+
+  const handleSignIn = () => {
+    const currentPath = `/lawyer/${lawyerId}?openConsultation=true`
+    router.push(`/auth/login?returnUrl=${encodeURIComponent(currentPath)}`)
+  }
+
+  const handleCreateAccount = () => {
+    const currentPath = `/lawyer/${lawyerId}?openConsultation=true`
+    router.push(`/auth/register?returnUrl=${encodeURIComponent(currentPath)}`)
   }
 
   if (isLoading) {
@@ -114,9 +146,39 @@ export default function PublicLawyerProfile({ params }: PublicLawyerProfileProps
     )
   }
 
-  const profileUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/lawyer/${lawyerId}`
+  const profileUrl = getLawyerProfileUrl(lawyerId)
   const yearsOnPlatform = Math.max(1, new Date().getFullYear() - new Date(lawyer.created_at).getFullYear())
   const hasLocation = lawyer.latitude && lawyer.longitude && lawyer.location_visibility
+
+  // Court level configuration
+  const courtLevelConfig = {
+    first_instance: {
+      icon: Scale,
+      labelEn: "First Instance",
+      labelAr: "المحكمة الابتدائية",
+      color: "bg-blue-100 text-blue-700 border-blue-200"
+    },
+    appeal: {
+      icon: Building2,
+      labelEn: "Appeal",
+      labelAr: "محكمة الاستئناف",
+      color: "bg-purple-100 text-purple-700 border-purple-200"
+    },
+    supreme_court: {
+      icon: LandmarkIcon,
+      labelEn: "Supreme Court",
+      labelAr: "المحكمة العليا",
+      color: "bg-amber-100 text-amber-700 border-amber-200"
+    },
+    council_of_state: {
+      icon: University,
+      labelEn: "Council of State",
+      labelAr: "مجلس الدولة",
+      color: "bg-emerald-100 text-emerald-700 border-emerald-200"
+    }
+  }
+
+  const authorizedCourts = lawyer.authorized_courts || ["first_instance"]
 
   return (
     <div className="min-h-screen pb-24">
@@ -145,8 +207,33 @@ export default function PublicLawyerProfile({ params }: PublicLawyerProfileProps
               </span>
               <span className="flex items-center gap-1">
                 <MapPin className="h-4 w-4" />
-                {lawyer.profile.city || "Algeria"}
+                {getWilayaName(lawyer.profile.city) || "Algeria"}
               </span>
+            </div>
+
+            {/* Authorized Court Levels */}
+            <div className="mt-4 w-full max-w-md">
+              <div className="flex flex-wrap gap-2 justify-center">
+                {authorizedCourts.map((courtLevel) => {
+                  const config = courtLevelConfig[courtLevel]
+                  const Icon = config.icon
+                  return (
+                    <Badge 
+                      key={courtLevel} 
+                      variant="outline"
+                      className={`${config.color} px-3 py-1.5 font-medium border`}
+                    >
+                      <Icon className="h-3.5 w-3.5 mr-1.5" />
+                      <span className="text-xs">{config.labelEn}</span>
+                      <span className="mx-1.5">•</span>
+                      <span className="text-xs font-arabic">{config.labelAr}</span>
+                    </Badge>
+                  )
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground text-center mt-2 italic">
+                ⚖️ Court levels are self-declared by the lawyer
+              </p>
             </div>
           </div>
 
@@ -161,7 +248,7 @@ export default function PublicLawyerProfile({ params }: PublicLawyerProfileProps
         </div>
 
         {/* QR Code Section */}
-        <Card className="border-primary/20">
+        <Card className="border-primary/20 max-w-full overflow-hidden">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-foreground">Digital Business Card</h3>
@@ -187,14 +274,14 @@ export default function PublicLawyerProfile({ params }: PublicLawyerProfileProps
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4">
-          <Card>
+          <Card className="max-w-full overflow-hidden">
             <CardContent className="p-4 text-center">
               <Briefcase className="h-5 w-5 mx-auto text-primary" />
               <p className="text-2xl font-bold text-foreground mt-2">{lawyer.consultations_count}</p>
               <p className="text-xs text-muted-foreground">Consultations</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="max-w-full overflow-hidden">
             <CardContent className="p-4 text-center">
               <Calendar className="h-5 w-5 mx-auto text-primary" />
               <p className="text-2xl font-bold text-foreground mt-2">{lawyer.years_of_experience}+</p>
@@ -204,29 +291,29 @@ export default function PublicLawyerProfile({ params }: PublicLawyerProfileProps
         </div>
 
         {/* Contact Information */}
-        <Card>
+        <Card className="max-w-full overflow-hidden">
           <CardContent className="p-4 space-y-3">
             <h3 className="font-semibold text-foreground">Contact Information</h3>
             {lawyer.profile.phone && (
               <div className="flex items-center gap-3 text-sm">
-                <Phone className="h-4 w-4 text-primary" />
-                <a href={`tel:${lawyer.profile.phone}`} className="text-foreground hover:underline">
+                <Phone className="h-4 w-4 text-primary shrink-0" />
+                <a href={`tel:${lawyer.profile.phone}`} className="text-foreground hover:underline break-all">
                   {lawyer.profile.phone}
                 </a>
               </div>
             )}
             {lawyer.profile.email && (
               <div className="flex items-center gap-3 text-sm">
-                <Mail className="h-4 w-4 text-primary" />
-                <a href={`mailto:${lawyer.profile.email}`} className="text-foreground hover:underline">
+                <Mail className="h-4 w-4 text-primary shrink-0" />
+                <a href={`mailto:${lawyer.profile.email}`} className="text-foreground hover:underline break-all">
                   {lawyer.profile.email}
                 </a>
               </div>
             )}
             {lawyer.office_address && (
               <div className="flex items-start gap-3 text-sm">
-                <MapPin className="h-4 w-4 text-primary mt-0.5" />
-                <span className="text-muted-foreground">{lawyer.office_address}</span>
+                <MapPin className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <span className="text-muted-foreground break-words">{lawyer.office_address}</span>
               </div>
             )}
           </CardContent>
@@ -248,7 +335,7 @@ export default function PublicLawyerProfile({ params }: PublicLawyerProfileProps
         {lawyer.bio && (
           <div>
             <h3 className="font-semibold text-foreground mb-3">About</h3>
-            <p className="text-muted-foreground leading-relaxed">{lawyer.bio}</p>
+            <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap break-words">{lawyer.bio}</p>
           </div>
         )}
 
@@ -272,15 +359,15 @@ export default function PublicLawyerProfile({ params }: PublicLawyerProfileProps
               {insights.slice(0, 3).map((insight) => (
                 <Card 
                   key={insight.id} 
-                  className="cursor-pointer hover:bg-accent/50 transition-colors"
+                  className="max-w-full overflow-hidden cursor-pointer hover:bg-accent/50 transition-colors"
                   onClick={() => router.push(`/insights/${insight.id}`)}
                 >
                   <CardHeader className="p-4">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <CardTitle className="text-base line-clamp-2">{insight.title}</CardTitle>
-                        <CardDescription className="line-clamp-2 mt-1">
-                          {insight.content.length > 150 ? `${insight.content.substring(0, 150)}...` : insight.content}
+                        <CardTitle className="text-base line-clamp-2 break-words">{insight.title}</CardTitle>
+                        <CardDescription className="line-clamp-2 mt-1 break-words">
+                          {insight.content}
                         </CardDescription>
                       </div>
                       <Badge variant="outline" className="shrink-0">
@@ -349,6 +436,43 @@ export default function PublicLawyerProfile({ params }: PublicLawyerProfileProps
           )}
         </div>
       </div>
+
+      {/* Sign In Required Modal */}
+      <Dialog open={showSignInModal} onOpenChange={setShowSignInModal}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="text-2xl">🔐</span>
+              Sign In Required
+            </DialogTitle>
+            <DialogDescription>
+              You need to be signed in to request a consultation with this lawyer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            <Button
+              onClick={handleSignIn}
+              className="w-full h-12"
+              size="lg"
+            >
+              <LogIn className="h-4 w-4 mr-2" />
+              Sign In
+            </Button>
+            <Button
+              onClick={handleCreateAccount}
+              variant="outline"
+              className="w-full h-12"
+              size="lg"
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Create Account
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground text-center">
+            After signing in, you'll be able to request consultations with lawyers.
+          </p>
+        </DialogContent>
+      </Dialog>
 
       {/* Request Consultation Modal */}
       {lawyer && (

@@ -4,11 +4,11 @@ import { NextRequest, NextResponse } from 'next/server'
 // GET /api/insights/[id] - Get a specific insight
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
-    const { id } = params
+    const { id } = await params
 
     const { data: insight, error } = await supabase
       .from('legal_insights_with_stats')
@@ -49,7 +49,7 @@ export async function GET(
 // PUT /api/insights/[id] - Update an insight (author only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
@@ -59,7 +59,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
     const { title, content, category, is_published, ai_tags } = body
 
@@ -137,7 +137,7 @@ export async function PUT(
 // DELETE /api/insights/[id] - Delete an insight (author only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
@@ -147,7 +147,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = params
+    const { id } = await params
 
     // Verify ownership
     const { data: existing } = await supabase

@@ -10,11 +10,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
+import { getBaseUrl } from "@/lib/config"
 
 function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const role = searchParams.get("role") || "client"
+  // SECURITY FIX: Always register as client. Only lawyer registration API should create lawyers.
+  const role = "client"
+  const returnUrl = searchParams.get("returnUrl")
   const [isLoading, setIsLoading] = useState(false)
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
@@ -37,15 +40,24 @@ function RegisterForm() {
     const supabase = createClient()
 
     try {
+      // Determine the redirect URL
+      const baseUrl = getBaseUrl()
+      let redirectUrl: string
+      
+      if (returnUrl) {
+        redirectUrl = `${baseUrl}${decodeURIComponent(returnUrl)}`
+      } else {
+        // Always redirect to client onboarding since we only allow client registration
+        redirectUrl = `${baseUrl}/client/onboarding`
+      }
+
       const { error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo:
-            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-            `${window.location.origin}/${role === "lawyer" ? "lawyer" : "client/onboarding"}`,
+          emailRedirectTo: redirectUrl,
           data: {
-            role: role,
+            role: "client", // SECURITY: Force client role. Only api/lawyer/register creates lawyers
             full_name: fullName,
             phone: phone,
           },
@@ -143,7 +155,10 @@ function RegisterForm() {
         <div className="mt-6 text-center">
           <p className="text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link href={`/auth/login?role=${role}`} className="text-primary font-medium">
+            <Link 
+              href={`/auth/login${returnUrl ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ''}`} 
+              className="text-primary font-medium"
+            >
               Sign In
             </Link>
           </p>

@@ -22,12 +22,12 @@ export async function POST(request: Request): Promise<Response> {
       )
     }
 
-    // Validate amount
-    if (body.amount <= 0) {
+    // Validate amount (must be exactly 15000 DZD for annual plan)
+    if (body.amount !== 15000) {
       return Response.json(
         {
           success: false,
-          error: { code: "VALIDATION_ERROR", message: "Amount must be positive" },
+          error: { code: "VALIDATION_ERROR", message: "Amount must be 15,000 DZD (annual subscription)" },
         } as ApiResponse<never>,
         { status: 400 },
       )

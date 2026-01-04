@@ -11,20 +11,9 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { ALGERIA_WILAYAS, getWilayaName, mapLegacyCityToWilaya } from "@/lib/algeria-wilayas"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { Profile } from "@/lib/database.types"
-
-const cities = [
-  "Algiers",
-  "Oran",
-  "Constantine",
-  "Annaba",
-  "Blida",
-  "Batna",
-  "Djelfa",
-  "Sétif",
-  "Sidi Bel Abbès",
-  "Biskra",
-]
 
 export default function EditClientProfilePage() {
   const router = useRouter()
@@ -64,7 +53,7 @@ export default function EditClientProfilePage() {
         if (profileData) {
           const p = profileData as Profile
           setFullName(p.full_name || "")
-          setCity(p.city || "")
+          setCity(mapLegacyCityToWilaya(p.city) || p.city || "")
           setPhone(p.phone || "")
         }
       } catch (err) {
@@ -147,20 +136,19 @@ export default function EditClientProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="city">City</Label>
-              <select
-                id="city"
-                className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-              >
-                <option value="">Select your city</option>
-                {cities.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+              <Label htmlFor="city">Wilaya (الولاية)</Label>
+              <Select value={city} onValueChange={setCity}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select your wilaya" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ALGERIA_WILAYAS.map((wilaya) => (
+                    <SelectItem key={wilaya.code} value={wilaya.slug}>
+                      {wilaya.code} - {wilaya.name_en} / {wilaya.name_ar}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

@@ -117,7 +117,7 @@ function AdminPaymentsContent() {
                         {payment.lawyer?.city || "Not specified"}
                       </div>
                       <div className="flex items-center justify-between mt-3">
-                        <Badge variant="secondary">{payment.subscription?.amount || 0} DZD</Badge>
+                        <Badge variant="secondary">{(payment.subscription?.amount || 0).toLocaleString()} DZD</Badge>
                         <Button
                           variant="ghost"
                           size="sm"
