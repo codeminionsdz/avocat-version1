@@ -6,9 +6,9 @@ import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Bot, User, AlertTriangle, Loader2, Scale, Building2 } from "lucide-react"
+import { Bot, User, AlertTriangle, Loader2, Scale, Building2, BookOpen } from "lucide-react"
 import { categoryLabels } from "@/lib/mock-data"
-import type { LegalCategory, CourtLevel, LawyerType } from "@/lib/database.types"
+import type { LegalCategory, CourtLevel, LawyerType, LegalInsightWithStats } from "@/lib/database.types"
 
 interface ChatMessage {
   id: string
@@ -42,12 +42,46 @@ function AIAssistantContent() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [answers, setAnswers] = useState<string[]>([])
   const [isComplete, setIsComplete] = useState(false)
+  const [recommendedInsights, setRecommendedInsights] = useState<LegalInsightWithStats[]>([])
+  const [loadingInsights, setLoadingInsights] = useState(false)
 
   useEffect(() => {
     if (initialIssue && !classification) {
       classifyCase(initialIssue)
     }
   }, [initialIssue])
+
+  useEffect(() => {
+    if (classification && isComplete) {
+      fetchRecommendedInsights()
+    }
+  }, [classification, isComplete])
+
+  const fetchRecommendedInsights = async () => {
+    if (!classification) return
+    
+    setLoadingInsights(true)
+    try {
+      const response = await fetch('/api/ai/recommend-insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: messages[0]?.content || '',
+          category: classification.category,
+          limit: 3
+        })
+      })
+
+      if (response.ok) {
+        const { insights } = await response.json()
+        setRecommendedInsights(insights || [])
+      }
+    } catch (error) {
+      console.error('Error fetching recommended insights:', error)
+    } finally {
+      setLoadingInsights(false)
+    }
+  }
 
   const classifyCase = async (userMessage: string) => {
     setIsClassifying(true)
@@ -258,9 +292,64 @@ function AIAssistantContent() {
             </Button>
           </div>
         ) : isComplete && classification ? (
-          <Button onClick={handleFindLawyers} className="w-full h-12" disabled={!classification}>
-            Find Authorized Lawyers
-          </Button>
+          <div className="space-y-4">
+            {/* Recommended Insights Section */}
+            {loadingInsights && (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            )}
+            
+            {!loadingInsights && recommendedInsights.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <BookOpen className="h-4 w-4 text-primary" />
+                  <span>Recommended Legal Insights</span>
+                </div>
+                <div className="space-y-2">
+                  {recommendedInsights.map((insight) => (
+                    <Card 
+                      key={insight.id}
+                      className="cursor-pointer hover:bg-accent/50 transition-colors"
+                      onClick={() => router.push('/insights')}
+                    >
+                      <CardContent className="p-3">
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-medium line-clamp-2 mb-1">
+                              {insight.title}
+                            </h4>
+                            <p className="text-xs text-muted-foreground line-clamp-2">
+                              {insight.content}
+                            </p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge variant="outline" className="text-xs">
+                                {categoryLabels[insight.category as LegalCategory]}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                by {insight.lawyer_name}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => router.push('/insights')}
+                >
+                  View All Insights
+                </Button>
+              </div>
+            )}
+            
+            <Button onClick={handleFindLawyers} className="w-full h-12" disabled={!classification}>
+              Find Authorized Lawyers
+            </Button>
+          </div>
         ) : null}
       </div>
     </div>

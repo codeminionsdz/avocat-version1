@@ -3,101 +3,167 @@
 // POST /api/consultations - Create Consultation Request
 // ============================================
 
-import type {
-  Consultation,
-  CreateConsultationRequest,
-  ApiResponse,
-  PaginatedResponse,
-  ConsultationStatus,
-} from "@/lib/api/types"
+import { createClient } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from 'next/server'
 
-export async function GET(request: Request): Promise<Response> {
+export async function GET(request: NextRequest) {
   try {
-    // TODO: Add authentication middleware
-    // const auth = await requireAuth(request)
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-    const { searchParams } = new URL(request.url)
-    const page = Number.parseInt(searchParams.get("page") || "1")
-    const limit = Number.parseInt(searchParams.get("limit") || "20")
-    const status = searchParams.get("status") as ConsultationStatus | null
-
-    // TODO: Implement database query
-    // For clients: fetch consultations where clientId = auth.user.id
-    // For lawyers: fetch consultations where lawyerId = auth.user.id
-    // Apply status filter and pagination
-
-    // Placeholder response
-    const mockResponse: ApiResponse<PaginatedResponse<Consultation>> = {
-      success: true,
-      data: {
-        data: [],
-        total: 0,
-        page,
-        limit,
-        totalPages: 0,
-      },
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    return Response.json(mockResponse, { status: 200 })
-  } catch {
-    return Response.json(
-      {
-        success: false,
-        error: { code: "INTERNAL_ERROR", message: "An unexpected error occurred" },
-      } as ApiResponse<never>,
-      { status: 500 },
-    )
+    const searchParams = request.nextUrl.searchParams
+    const status = searchParams.get('status')
+
+    // Get user's profile to determine role
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    let query = supabase
+      .from('consultations')
+      .select(`
+        *,
+        client:profiles!consultations_client_id_fkey(id, full_name, phone),
+        lawyer:profiles!consultations_lawyer_id_fkey(id, full_name, phone)
+      `)
+      .order('created_at', { ascending: false })
+
+    // Filter based on user role
+    if (profile?.role === 'lawyer') {
+      query = query.eq('lawyer_id', user.id)
+    } else {
+      query = query.eq('client_id', user.id)
+    }
+
+    // Apply status filter if provided
+    if (status) {
+      query = query.eq('status', status)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error('Error fetching consultations:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
-export async function POST(request: Request): Promise<Response> {
+export async function POST(request: NextRequest) {
   try {
-    // TODO: Add client authentication middleware
-    // const auth = await requireClient(request)
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-    const body: CreateConsultationRequest = await request.json()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const {
+      lawyer_id,
+      category,
+      description,
+      consultation_type,
+      requested_duration,
+      requested_time
+    } = body
 
     // Validate required fields
-    if (!body.lawyerId || !body.category || !body.summary) {
-      return Response.json(
-        {
-          success: false,
-          error: { code: "VALIDATION_ERROR", message: "lawyerId, category, and summary are required" },
-        } as ApiResponse<never>,
-        { status: 400 },
+    if (!lawyer_id || !category || !description || !consultation_type || !requested_duration) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
       )
     }
 
-    // TODO: Implement consultation creation
-    // 1. Verify lawyer exists and is active
-    // 2. Verify lawyer is available
-    // 3. Create consultation with status 'pending'
-    // 4. Send notification to lawyer
-
-    // Placeholder response
-    const mockResponse: ApiResponse<Consultation> = {
-      success: true,
-      data: {
-        id: "consultation_new",
-        clientId: "client_1",
-        lawyerId: body.lawyerId,
-        category: body.category,
-        summary: body.summary,
-        aiClassification: body.aiClassification,
-        status: "pending",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
+    // Validate description length (minimum 20 characters)
+    if (description.trim().length < 20) {
+      return NextResponse.json(
+        { error: 'Description must be at least 20 characters' },
+        { status: 400 }
+      )
     }
 
-    return Response.json(mockResponse, { status: 201 })
-  } catch {
-    return Response.json(
-      {
-        success: false,
-        error: { code: "INTERNAL_ERROR", message: "An unexpected error occurred" },
-      } as ApiResponse<never>,
-      { status: 500 },
-    )
+    // Validate consultation_type
+    if (!['chat', 'call', 'in_person'].includes(consultation_type)) {
+      return NextResponse.json(
+        { error: 'Invalid consultation type. Must be: chat, call, or in_person' },
+        { status: 400 }
+      )
+    }
+
+    // Validate duration
+    if (![15, 30].includes(requested_duration)) {
+      return NextResponse.json(
+        { error: 'Invalid duration. Must be 15 or 30 minutes' },
+        { status: 400 }
+      )
+    }
+
+    // Check if lawyer exists and is available
+    const { data: lawyer } = await supabase
+      .from('lawyer_profiles')
+      .select('id, is_available')
+      .eq('id', lawyer_id)
+      .single()
+
+    if (!lawyer) {
+      return NextResponse.json(
+        { error: 'Lawyer not found' },
+        { status: 404 }
+      )
+    }
+
+    // Create consultation request with explicit status = 'pending'
+    const { data: consultation, error } = await supabase
+      .from('consultations')
+      .insert({
+        client_id: user.id,
+        lawyer_id,
+        category,
+        description,
+        consultation_type,
+        requested_duration,
+        requested_time: requested_time || null,
+        status: 'pending' // Explicitly set status
+      })
+      .select(`
+        id,
+        client_id,
+        lawyer_id,
+        category,
+        description,
+        consultation_type,
+        requested_duration,
+        requested_time,
+        status,
+        created_at
+      `)
+      .single()
+
+    if (error) {
+      console.error('Error creating consultation:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    console.log('✅ Consultation created successfully:', { id: consultation.id, lawyer_id, client_id: user.id })
+
+    return NextResponse.json({ 
+      success: true,
+      consultation 
+    }, { status: 201 })
+  } catch (error) {
+    console.error('Error creating consultation:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

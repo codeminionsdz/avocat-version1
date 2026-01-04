@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, MessageSquare, User, Scale, LayoutDashboard, Users, FileCheck } from "lucide-react"
+import { Home, MessageSquare, User, Scale, LayoutDashboard, Users, FileCheck, BookOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { UserRole } from "@/lib/types"
 
@@ -13,6 +13,7 @@ interface BottomNavProps {
 const clientTabs = [
   { href: "/client", icon: Home, label: "Home" },
   { href: "/client/lawyers", icon: Scale, label: "Lawyers" },
+  { href: "/insights", icon: BookOpen, label: "Insights" },
   { href: "/client/consultations", icon: MessageSquare, label: "Consults" },
   { href: "/client/profile", icon: User, label: "Profile" },
 ]
@@ -20,6 +21,7 @@ const clientTabs = [
 const lawyerTabs = [
   { href: "/lawyer", icon: Home, label: "Home" },
   { href: "/lawyer/requests", icon: FileCheck, label: "Requests" },
+  { href: "/lawyer/insights", icon: BookOpen, label: "Insights" },
   { href: "/lawyer/chats", icon: MessageSquare, label: "Chats" },
   { href: "/lawyer/profile", icon: User, label: "Profile" },
 ]

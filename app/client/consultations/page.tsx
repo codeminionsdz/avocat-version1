@@ -4,7 +4,8 @@ import { Header } from "@/components/header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { MessageSquare, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { MessageSquare, Clock, CheckCircle2, XCircle, Loader2, FileText, Info } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useClientConsultations } from "@/lib/hooks/use-consultations"
 import type { LegalCategory, ConsultationStatus } from "@/lib/database.types"
@@ -57,6 +58,7 @@ export default function ConsultationsPage() {
           consultations.map((consultation) => {
             const status = statusConfig[consultation.status]
             const StatusIcon = status.icon
+            const hasNotes = consultation.status === 'accepted' && consultation.lawyer_notes
 
             return (
               <Card
@@ -90,6 +92,18 @@ export default function ConsultationsPage() {
                         {categoryLabels[consultation.category]}
                       </Badge>
                       <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{consultation.description}</p>
+                      
+                      {/* Lawyer Notes */}
+                      {hasNotes && (
+                        <Alert className="mt-3 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+                          <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <AlertDescription className="text-sm text-blue-900 dark:text-blue-100">
+                            <strong className="font-semibold block mb-1">📋 Instructions from Lawyer:</strong>
+                            <span className="whitespace-pre-wrap">{consultation.lawyer_notes}</span>
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      
                       <p className="text-xs text-muted-foreground mt-2">
                         {new Date(consultation.created_at).toLocaleDateString()}
                       </p>

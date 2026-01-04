@@ -4,6 +4,27 @@
 .leaflet-container {
   width: 100%;
   height: 100%;
+  z-index: 0 !important; /* Keep map below modal content */
+}
+
+/* Force all Leaflet panes to stay below modal */
+.leaflet-pane {
+  z-index: 0 !important;
+}
+
+.leaflet-map-pane {
+  z-index: 0 !important;
+}
+
+/* Map container wrapper for modals */
+.map-container-wrapper {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  border: 2px solid #e5e7eb;
+  z-index: 0;
 }
 
 .leaflet-default-icon-path {
@@ -14,6 +35,7 @@
 .leaflet-control-zoom {
   border: none !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  z-index: 1 !important; /* Above map but below modal */
 }
 
 .leaflet-control-zoom a {
@@ -25,4 +47,5 @@
 .leaflet-touch .leaflet-bar {
   border: none;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 1 !important;
 }

@@ -2,16 +2,19 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { toast } from "@/hooks/use-toast"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Star, MapPin, CheckCircle, Briefcase, Calendar, Phone, Mail, Navigation, Download, Share2, Loader2 } from "lucide-react"
+import { Star, MapPin, CheckCircle, Briefcase, Calendar, Phone, Mail, Navigation, Download, Share2, Loader2, ThumbsUp, ThumbsDown, BookOpen } from "lucide-react"
 import { LawyerQRCode } from "@/components/lawyer/lawyer-qr-code"
 import { LawyerMap } from "@/components/lawyer/lawyer-map"
-import type { LawyerWithProfile, LegalCategory } from "@/lib/database.types"
+import { RequestConsultationModal } from "@/components/consultation/request-consultation-modal"
+import type { LawyerWithProfile, LegalCategory, LegalInsightWithStats } from "@/lib/database.types"
 
 const categoryLabels: Record<LegalCategory, string> = {
   criminal: "Criminal Law",
@@ -34,11 +37,14 @@ export default function PublicLawyerProfile({ params }: PublicLawyerProfileProps
   const [isLoading, setIsLoading] = useState(true)
   const [activeSubscription, setActiveSubscription] = useState<any>(null)
   const [showQR, setShowQR] = useState(false)
+  const [insights, setInsights] = useState<LegalInsightWithStats[]>([])
+  const [showRequestModal, setShowRequestModal] = useState(false)
 
   useEffect(() => {
     params.then((resolvedParams) => {
       setLawyerId(resolvedParams.id)
       fetchLawyerProfile(resolvedParams.id)
+      fetchLawyerInsights(resolvedParams.id)
     })
   }, [params])
 
@@ -57,10 +63,35 @@ export default function PublicLawyerProfile({ params }: PublicLawyerProfileProps
     }
   }
 
-  const handleRequestConsultation = () => {
-    // Redirect to consultation page - auth will be checked there
-    // If user is not logged in, they'll be redirected to login from the consultation page
-    router.push(`/client/consultations/new?lawyerId=${lawyerId}`)
+  const fetchLawyerInsights = async (id: string) => {
+    try {
+      const response = await fetch(`/api/insights?lawyer_id=${id}`)
+      if (response.ok) {
+        const data = await response.json()
+        setInsights(data)
+      }
+    } catch (error) {
+      console.error("Error fetching lawyer insights:", error)
+    }
+  }
+
+  const handleRequestConsultation = async () => {
+    // Check authentication before opening modal
+    const supabase = createClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session) {
+      toast({
+        title: "🔐 Sign In Required",
+        description: "Please sign in to request a consultation",
+        variant: "destructive"
+      })
+      const currentPath = `/lawyer/${lawyerId}`
+      router.push(`/auth/login?returnUrl=${encodeURIComponent(currentPath)}`)
+      return
+    }
+    
+    setShowRequestModal(true)
   }
 
   if (isLoading) {
@@ -221,16 +252,73 @@ export default function PublicLawyerProfile({ params }: PublicLawyerProfileProps
           </div>
         )}
 
+        {/* Legal Insights */}
+        {insights.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-foreground flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Legal Insights
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push(`/insights?lawyer_id=${lawyerId}`)}
+              >
+                View All
+              </Button>
+            </div>
+            <div className="space-y-3">
+              {insights.slice(0, 3).map((insight) => (
+                <Card 
+                  key={insight.id} 
+                  className="cursor-pointer hover:bg-accent/50 transition-colors"
+                  onClick={() => router.push(`/insights/${insight.id}`)}
+                >
+                  <CardHeader className="p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-base line-clamp-2">{insight.title}</CardTitle>
+                        <CardDescription className="line-clamp-2 mt-1">
+                          {insight.content.length > 150 ? `${insight.content.substring(0, 150)}...` : insight.content}
+                        </CardDescription>
+                      </div>
+                      <Badge variant="outline" className="shrink-0">
+                        {insight.category}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <ThumbsUp className="h-3 w-3" />
+                        <span>{insight.helpful_count}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <ThumbsDown className="h-3 w-3" />
+                        <span>{insight.not_helpful_count}</span>
+                      </div>
+                      <span className="text-xs">
+                        {new Date(insight.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Office Location Map */}
         {hasLocation && (
           <div>
             <h3 className="font-semibold text-foreground mb-3">Office Location</h3>
-            <LawyerMap
-              latitude={lawyer.latitude!}
-              longitude={lawyer.longitude!}
-              lawyerName={lawyer.profile.full_name}
-              officeAddress={lawyer.office_address}
-            />
+            <div className="map-container-wrapper">
+              <LawyerMap
+                latitude={lawyer.latitude!}
+                longitude={lawyer.longitude!}
+                lawyerName={lawyer.profile.full_name}
+                officeAddress={lawyer.office_address}
+              />
+            </div>
           </div>
         )}
       </div>
@@ -261,6 +349,16 @@ export default function PublicLawyerProfile({ params }: PublicLawyerProfileProps
           )}
         </div>
       </div>
+
+      {/* Request Consultation Modal */}
+      {lawyer && (
+        <RequestConsultationModal
+          open={showRequestModal}
+          onOpenChange={setShowRequestModal}
+          lawyerId={lawyerId}
+          lawyerName={lawyer.profile.full_name}
+        />
+      )}
     </div>
   )
 }
