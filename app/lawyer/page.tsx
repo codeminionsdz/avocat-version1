@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import { Header } from "@/components/header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -27,6 +28,13 @@ export default function LawyerHomePage() {
     unreadMessages,
   })
 
+  // If no lawyer profile, redirect to registration
+  useEffect(() => {
+    if (!isLoading && !lawyerProfile) {
+      router.push("/lawyer/register")
+    }
+  }, [isLoading, lawyerProfile, router])
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -35,10 +43,13 @@ export default function LawyerHomePage() {
     )
   }
 
-  // If no lawyer profile, redirect to registration
+  // Show loading while redirecting
   if (!lawyerProfile) {
-    router.push("/lawyer/register")
-    return null
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   const lawyerStatus = lawyerProfile.status

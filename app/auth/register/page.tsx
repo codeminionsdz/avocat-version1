@@ -40,14 +40,24 @@ function RegisterForm() {
     const supabase = createClient()
 
     try {
-      // Determine the redirect URL
+      // Determine the redirect URL based on signup_intent
       const baseUrl = getBaseUrl()
       let redirectUrl: string
       
+      // Check signup_intent from localStorage (set on welcome page)
+      const signupIntent = typeof window !== 'undefined' ? localStorage.getItem("signup_intent") : null
+      
       if (returnUrl) {
+        // If there's a returnUrl (e.g., from QR/public flow), use it and override intent to client
+        if (typeof window !== 'undefined') {
+          localStorage.setItem("signup_intent", "client")
+        }
         redirectUrl = `${baseUrl}${decodeURIComponent(returnUrl)}`
+      } else if (signupIntent === "lawyer") {
+        // User selected "I am a lawyer" on welcome page
+        redirectUrl = `${baseUrl}/lawyer/register`
       } else {
-        // Always redirect to client onboarding since we only allow client registration
+        // Default to client onboarding
         redirectUrl = `${baseUrl}/client/onboarding`
       }
 

@@ -6,17 +6,16 @@
 
 -- Drop existing policies if they exist
 DROP POLICY IF EXISTS "prevent_role_self_escalation" ON profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 
--- Create policy to prevent users from updating their own role
-CREATE POLICY "prevent_role_self_escalation"
+-- Recreate simple update policy without recursive subquery
+-- Users can update their own profile (role protection handled by trigger)
+CREATE POLICY "Users can update own profile"
 ON profiles
 FOR UPDATE
 USING (auth.uid() = id)
-WITH CHECK (
-  -- User can update their profile BUT NOT change their role
-  role = (SELECT role FROM profiles WHERE id = auth.uid())
-);
+WITH CHECK (auth.uid() = id);
 
--- Add comment for documentation
-COMMENT ON POLICY "prevent_role_self_escalation" ON profiles IS 
-'Prevents users from changing their own role. Role changes must be done via service role (backend APIs only).';
+-- Note: Role changes are prevented by the trigger created in 020_update_trigger_security.sql
+-- Using a policy WITH CHECK that queries the same table causes infinite recursion
+-- The trigger approach is more reliable for this use case

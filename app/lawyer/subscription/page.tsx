@@ -9,18 +9,21 @@ import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle, AlertCircle, CreditCard, Upload, Loader2 } from "lucide-react"
+import { CheckCircle, AlertCircle, CreditCard, Upload, Loader2, Copy, Check } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useLawyerProfile } from "@/lib/hooks/use-lawyer-profile"
+import { useAuth } from "@/lib/auth-context"
 
 export default function SubscriptionPage() {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { user } = useAuth()
   const [hasUploaded, setHasUploaded] = useState(false)
   const [uploadedFileName, setUploadedFileName] = useState("")
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [copiedField, setCopiedField] = useState<string | null>(null)
 
   const { subscription, isLoading } = useLawyerProfile()
 
@@ -63,6 +66,15 @@ export default function SubscriptionPage() {
 
   const status = statusConfig[subscriptionStatus as keyof typeof statusConfig] || statusConfig.inactive
   const StatusIcon = status.icon
+
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedField(field)
+    setTimeout(() => setCopiedField(null), 2000)
+  }
+
+  const userEmail = user?.email || ""
+  const reference = `AVOCA-SUB-${userEmail}`
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -248,25 +260,91 @@ export default function SubscriptionPage() {
 
         {/* Payment Instructions */}
         {showPaymentFlow && (
-          <Card className="bg-muted/50">
-            <CardContent className="p-4">
-              <h3 className="font-semibold text-foreground mb-2">Payment Instructions</h3>
-              <p className="text-sm text-muted-foreground mb-3">
+          <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-primary" />
+                Payment Instructions
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
                 Transfer the subscription fee to the following account and upload your payment receipt:
               </p>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Bank:</span>
+              
+              <div className="space-y-3 bg-card rounded-lg p-4 border">
+                {/* Bank Name */}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Bank:</span>
                   <span className="font-medium">CPA Algeria</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Account:</span>
-                  <span className="font-medium">1234 5678 9012 3456</span>
+                
+                {/* RIP Account */}
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-sm text-muted-foreground">RIP:</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-medium text-sm">007 99999 0044057865 72</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0"
+                      onClick={() => copyToClipboard("00799999004405786572", "rip")}
+                    >
+                      {copiedField === "rip" ? (
+                        <Check className="h-3 w-3 text-emerald-600" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Reference:</span>
-                  <span className="font-medium">AVOCA-SUB</span>
+
+                {/* Beneficiary */}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Beneficiary:</span>
+                  <span className="font-medium">Ouail Rouabia</span>
                 </div>
+
+                {/* Amount */}
+                <div className="flex justify-between items-center pt-2 border-t">
+                  <span className="text-sm text-muted-foreground">Amount:</span>
+                  <span className="font-bold text-lg text-primary">15,000 DZD</span>
+                </div>
+
+                {/* Reference */}
+                <div className="flex flex-col gap-1 pt-2 border-t">
+                  <div className="flex justify-between items-start">
+                    <span className="text-sm text-muted-foreground">Reference:</span>
+                    <div className="flex items-center gap-2 flex-1 justify-end">
+                      <span className="font-mono text-xs text-right break-all">{reference}</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 flex-shrink-0"
+                        onClick={() => copyToClipboard(reference, "ref")}
+                      >
+                        {copiedField === "ref" ? (
+                          <Check className="h-3 w-3 text-emerald-600" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground italic text-right">
+                    Please include this reference in your transfer
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                <p className="text-xs text-amber-900 dark:text-amber-100">
+                  ⏱️ Payments are reviewed manually within <strong>24–48 hours</strong>
+                </p>
+              </div>
+
+              <div className="mt-3 text-center">
+                <p className="text-xs text-muted-foreground">
+                  Online payment methods (CIB / Edahabia) coming soon
+                </p>
               </div>
             </CardContent>
           </Card>

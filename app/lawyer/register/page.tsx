@@ -89,6 +89,19 @@ export default function LawyerRegisterPage() {
     setIsLoading(true)
     setError(null)
 
+    // Validate required fields
+    if (!city) {
+      setError("Please select a wilaya")
+      setIsLoading(false)
+      return
+    }
+
+    if (selectedSpecialties.length === 0) {
+      setError("Please select at least one specialty")
+      setIsLoading(false)
+      return
+    }
+
     const supabase = createClient()
 
     try {
@@ -101,10 +114,18 @@ export default function LawyerRegisterPage() {
         return
       }
 
+      console.log("[LawyerRegister] Updating profile for user:", user.id)
+
       // Update profile with city
       const { error: profileError } = await supabase.from("profiles").update({ city }).eq("id", user.id)
 
-      if (profileError) throw profileError
+      if (profileError) {
+        console.error("[LawyerRegister] Profile update error:", profileError)
+        console.error("[LawyerRegister] Profile error details:", JSON.stringify(profileError, null, 2))
+        throw new Error(`Profile update failed: ${profileError.message || profileError.code || 'Unknown error'}`)
+      }
+
+      console.log("[LawyerRegister] Creating lawyer profile...")
 
       // Create or update lawyer profile with court authorizations
       const { error: lawyerError } = await supabase.from("lawyer_profiles").upsert({
@@ -117,11 +138,30 @@ export default function LawyerRegisterPage() {
         status: "pending",
       })
 
-      if (lawyerError) throw lawyerError
+      if (lawyerError) {
+        console.error("[LawyerRegister] Lawyer profile error:", lawyerError)
+        console.error("[LawyerRegister] Lawyer error details:", JSON.stringify(lawyerError, null, 2))
+        
+        // Check for specific error types
+        if (lawyerError.code === '23505' && lawyerError.message?.includes('bar_number')) {
+          throw new Error('This bar registration number is already registered. Please contact support if this is an error.')
+        }
+        
+        throw new Error(`Lawyer profile failed: ${lawyerError.message || lawyerError.code || 'Unknown error'}`)
+      }
+
+      console.log("[LawyerRegister] Success! Redirecting to subscription...")
+      
+      // Clear signup_intent after successful registration
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem("signup_intent")
+      }
 
       router.push("/lawyer/subscription")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save profile")
+      console.error("[LawyerRegister] Error:", err)
+      const errorMessage = err instanceof Error ? err.message : "Failed to save profile"
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -155,7 +195,7 @@ export default function LawyerRegisterPage() {
           {/* City / Wilaya */}
           <div className="space-y-2">
             <Label htmlFor="city">Wilaya (الولاية)</Label>
-            <Select value={city} onValueChange={setCity} required>
+            <Select value={city} onValueChange={setCity}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="اختر الولاية / Select wilaya" />
               </SelectTrigger>
@@ -174,18 +214,20 @@ export default function LawyerRegisterPage() {
             <Label>Specialties (select all that apply)</Label>
             <div className="grid grid-cols-1 gap-2">
               {allCategories.map((category) => (
-                <div
+                <label
                   key={category}
                   className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                     selectedSpecialties.includes(category)
                       ? "border-primary bg-primary/5"
                       : "border-border hover:border-primary/50"
                   }`}
-                  onClick={() => toggleSpecialty(category)}
                 >
-                  <Checkbox checked={selectedSpecialties.includes(category)} />
+                  <Checkbox 
+                    checked={selectedSpecialties.includes(category)} 
+                    onCheckedChange={() => toggleSpecialty(category)}
+                  />
                   <span className="text-sm font-medium">{categoryLabels[category]}</span>
-                </div>
+                </label>
               ))}
             </div>
           </div>
@@ -238,7 +280,7 @@ export default function LawyerRegisterPage() {
                 const isFirstInstance = courtLevel === "first_instance"
                 const isSelected = selectedCourtLevels.includes(courtLevel)
                 return (
-                  <div
+                  <label
                     key={courtLevel}
                     className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
                       isFirstInstance
@@ -247,9 +289,13 @@ export default function LawyerRegisterPage() {
                           ? "border-primary bg-primary/5 cursor-pointer"
                           : "border-border hover:border-primary/50 cursor-pointer"
                     }`}
-                    onClick={() => !isFirstInstance && toggleCourtLevel(courtLevel)}
                   >
-                    <Checkbox checked={isSelected} disabled={isFirstInstance} className="mt-0.5" />
+                    <Checkbox 
+                      checked={isSelected} 
+                      disabled={isFirstInstance} 
+                      className="mt-0.5"
+                      onCheckedChange={() => !isFirstInstance && toggleCourtLevel(courtLevel)}
+                    />
                     <div className="flex-1">
                       <div className="text-sm font-medium">{courtLevelLabels[courtLevel].label}</div>
                       <div className="text-xs text-muted-foreground mt-1">
@@ -259,7 +305,7 @@ export default function LawyerRegisterPage() {
                         <div className="text-xs text-primary mt-1 font-medium">Required for all lawyers</div>
                       )}
                     </div>
-                  </div>
+                  </label>
                 )
               })}
             </div>

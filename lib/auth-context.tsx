@@ -51,6 +51,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut()
       setUser(null)
       setRole(null)
+      // Clear signup_intent on signout
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem("signup_intent")
+      }
     } catch (err) {
       console.error("Sign out error:", err)
     }

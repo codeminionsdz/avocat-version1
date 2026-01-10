@@ -12,8 +12,12 @@ export default function HomePage() {
 
   const handleContinue = () => {
     if (selectedRole === "client") {
+      // Store intent in localStorage for post-confirmation redirect
+      localStorage.setItem("signup_intent", "client")
       router.push("/auth/login?role=client")
     } else if (selectedRole === "lawyer") {
+      // Store intent in localStorage for post-confirmation redirect
+      localStorage.setItem("signup_intent", "lawyer")
       router.push("/auth/login?role=lawyer")
     }
   }

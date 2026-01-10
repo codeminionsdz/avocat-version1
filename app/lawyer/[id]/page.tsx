@@ -117,11 +117,19 @@ export default function PublicLawyerProfile({ params }: PublicLawyerProfileProps
   }
 
   const handleSignIn = () => {
+    // Override any previous signup_intent to client (public flows always create clients)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("signup_intent", "client")
+    }
     const currentPath = `/lawyer/${lawyerId}?openConsultation=true`
     router.push(`/auth/login?returnUrl=${encodeURIComponent(currentPath)}`)
   }
 
   const handleCreateAccount = () => {
+    // Override any previous signup_intent to client (public flows always create clients)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("signup_intent", "client")
+    }
     const currentPath = `/lawyer/${lawyerId}?openConsultation=true`
     router.push(`/auth/register?returnUrl=${encodeURIComponent(currentPath)}`)
   }

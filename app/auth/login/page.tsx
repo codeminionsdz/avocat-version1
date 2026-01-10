@@ -44,16 +44,37 @@ function LoginForm() {
 
       if (authError) throw authError
 
-      // Check user role from database (not URL) and redirect accordingly
+      // Check signup_intent from localStorage (for post-email-confirmation redirect)
+      const signupIntent = typeof window !== 'undefined' ? localStorage.getItem("signup_intent") : null
+      
+      // Check user role from database (not URL)
       const userRole = data.user?.user_metadata?.role
 
-      // Redirect based on returnUrl or ACTUAL role (from database)
+      // Redirect based on priority: returnUrl > signup_intent > actual role
       if (returnUrl) {
+        // Clear signup_intent after successful redirect
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem("signup_intent")
+        }
         // Use replace to avoid back button issues
         router.replace(decodeURIComponent(returnUrl))
+      } else if (signupIntent === "lawyer") {
+        // User selected "I am a lawyer" on welcome page
+        // Clear the intent after using it
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem("signup_intent")
+        }
+        // Check if they have a lawyer profile, redirect accordingly
+        router.replace("/lawyer")
       } else if (userRole === "lawyer") {
+        // User has lawyer role in database
         router.replace("/lawyer")
       } else {
+        // Default to client home
+        // Clear signup_intent if any
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem("signup_intent")
+        }
         router.replace("/client/home")
       }
     } catch (err) {

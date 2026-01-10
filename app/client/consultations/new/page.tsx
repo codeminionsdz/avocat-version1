@@ -83,6 +83,10 @@ function NewConsultationContent() {
       } = await supabase.auth.getUser()
 
       if (!user) {
+        // Override any previous signup_intent to client (consultation requests always create clients)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem("signup_intent", "client")
+        }
         // Redirect to login with return URL
         const returnUrl = encodeURIComponent(`/client/consultations/new?lawyerId=${lawyerId}`)
         router.push(`/auth/login?returnUrl=${returnUrl}`)
